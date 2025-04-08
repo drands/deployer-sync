@@ -1,4 +1,20 @@
+# Deployer Sync 
+This package provides a set of commands to synchronize uploaded files and database between a remote server and your local machine using Deployer.
+
 ## Installation
+
+Add the following to your `composer.json` file:
+
+```json
+"repositories": [
+    {
+        "type": "vcs",
+        "url": "git@github.com:drands/deployer-sync.git"
+    }
+],
+```
+
+Install the package using Composer:
 
 ```bash
 composer require drands/deployer-sync dev-main
