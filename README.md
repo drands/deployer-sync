@@ -27,6 +27,13 @@ import:
   - vendor/drands/deployer-sync/src/recipe/sync.php
 ```
 
+You must also set the `local_php_path` variable with the path to your PHP executable on your local machine. For example:
+
+```yml
+local_php_path: php
+```
+
+
 ## Usage
 
 ### Full sync files and database from remote server to local machine
