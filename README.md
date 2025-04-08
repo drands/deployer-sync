@@ -36,7 +36,7 @@ dep sync:prod-to-local
 
 ### Only export files and database from remote server and download to local machine
 ```bash
-dep export-to-local
+dep sync:export-to-local
 ```
 
 ### Only import files and database from sync_export.zip
