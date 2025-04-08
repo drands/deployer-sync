@@ -4,7 +4,7 @@ namespace Drands\DeployerSync;
 
 use Illuminate\Support\ServiceProvider;
 
-class DeploymentServiceProvider extends ServiceProvider
+class DeployerSyncServiceProvider extends ServiceProvider
 {
     public function register()
     {
