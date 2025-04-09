@@ -88,7 +88,7 @@ class SyncExport extends Command
         $dbUsername = config('database.connections.mysql.username', 'root');
         $dbPassword = config('database.connections.mysql.password', '');
         $dbName = config('database.connections.mysql.database', 'forge');
-        $command = "$mysqlDumpPath --user=\"$dbUsername\" --password=\"$dbPassword\" --no-create-info --replace --skip-triggers $dbName > $path";
+        $command = "$mysqlDumpPath --user=\"$dbUsername\" --password=\"$dbPassword\" --no-create-info --no-tablespaces --replace --skip-triggers $dbName > $path";
         exec($command, $output, $outputCode);
         if ($outputCode !== 0) {
             return false;
