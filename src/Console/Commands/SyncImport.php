@@ -3,6 +3,7 @@
 namespace Drands\DeployerSync\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 
 class SyncImport extends Command
 {
@@ -32,7 +33,7 @@ class SyncImport extends Command
         $this->info('Starting Sync Import...');
 
         $zipFilePath = storage_path() . DIRECTORY_SEPARATOR . $this->zipFileName;
-        
+
         // Check if the ZIP file exists
         if (!file_exists($zipFilePath)) {
             $this->error('ZIP file not found. Please create it first using sync:export.');
@@ -89,19 +90,22 @@ class SyncImport extends Command
         }
 
         $this->info('Restoring uploaded files...');
-        
+
         //remove all directories and files in the app directory
         $this->cleanDirectory(storage_path('app'));
 
+        // Move directories from the unzipped directory to the app directory
+        $directories = File::directories($unzipPath);
+        foreach ($directories as $dir) {
+            $destination = storage_path('app') . DIRECTORY_SEPARATOR . basename($dir);
+            rename($dir, $destination);
+        }
+
         // Move files from the unzipped directory to the app directory
-        $files = glob($unzipPath . DIRECTORY_SEPARATOR . '*');
+        $files = File::allFiles($unzipPath, hidden: true);
         foreach ($files as $file) {
-            $destination = storage_path('app') . DIRECTORY_SEPARATOR . basename($file);
-            if (is_dir($file)) {
-                rename($file, $destination);
-            } else {
-                copy($file, $destination);
-            }
+            $destination = storage_path('app') . DIRECTORY_SEPARATOR . $file->getFilename();
+            rename($file->getPathname(), $destination);
         }
         $this->info('Uploaded files restored successfully.');
 
@@ -121,7 +125,7 @@ class SyncImport extends Command
     protected function cleanDirectory($dir)
     {
         $this->info('Cleaning directory: ' . $dir);
-        
+
         if (!is_dir($dir)) {
             return;
         }
