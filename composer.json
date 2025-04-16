@@ -1,8 +1,8 @@
 {
     "name": "drands/deployer-sync",
-    "version": "1.0.0",
     "description": "A Laravel package to synchronize database and uploaded files between local and remote servers using Deployer.",
     "type": "library",
+    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Drands\\DeployerSync\\": "src/"
