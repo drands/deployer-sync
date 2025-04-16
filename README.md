@@ -3,21 +3,10 @@ This package provides a set of commands to synchronize uploaded files and databa
 
 ## Installation
 
-Add the following to your `composer.json` file:
-
-```json
-"repositories": [
-    {
-        "type": "vcs",
-        "url": "git@github.com:drands/deployer-sync.git"
-    }
-],
-```
-
 Install the package using Composer:
 
 ```bash
-composer require drands/deployer-sync dev-main
+composer require drands/deployer-sync
 ```
 
 Add the following to your `deploy.yml` file:
