@@ -3,6 +3,7 @@
 namespace Drands\DeployerSync\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class SyncExport extends Command
@@ -57,7 +58,7 @@ class SyncExport extends Command
         } else {
             return $this->error('Failed to create database dump.');
         }
-        
+
         $this->addUploadedFilesToZip();
 
         $this->zip->close();
@@ -100,14 +101,20 @@ class SyncExport extends Command
     protected function addUploadedFilesToZip()
     {
         $this->info('Adding uploaded files to ZIP...');
+
         // add all files from the storage/app/* directories excluding the livewire-tmp directory, keep the directory structure
-        $files = glob(storage_path('app') . DIRECTORY_SEPARATOR . '*/*.*');
+        $basePath = storage_path('app');
+        $files = File::allFiles($basePath, hidden: true);
+
         foreach ($files as $file) {
-            if (Str::contains($file, 'livewire-tmp')) {
+            $filePath = $file->getPathname();
+
+            if (Str::contains($filePath, 'livewire-tmp')) {
                 continue;
             }
-            $this->zip->addFile($file, str_replace(storage_path('app') . DIRECTORY_SEPARATOR, '', $file));
+
+            $relativePath = str_replace($basePath . DIRECTORY_SEPARATOR, '', $filePath);
+            $this->zip->addFile($filePath, $relativePath);
         }
     }
-
 }

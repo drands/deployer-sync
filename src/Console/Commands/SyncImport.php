@@ -121,18 +121,11 @@ class SyncImport extends Command
     protected function cleanDirectory($dir)
     {
         $this->info('Cleaning directory: ' . $dir);
-
-        $hasGitignoreInPublic = is_dir($dir . '/public') && file_exists($dir . '/public/.gitignore');
         
         if (!is_dir($dir)) {
             return;
         }
 
         system('rm -rf ' . escapeshellarg($dir) . '/*');
-
-        if ($hasGitignoreInPublic) {
-            // touch the .gitignore file to keep it
-            file_put_contents($dir . '/public/.gitignore', '');
-        }
     }
 }
