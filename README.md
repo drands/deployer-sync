@@ -22,6 +22,7 @@ You must also set the `local_php_path` variable with the path to your PHP execut
 local_php_path: php
 ```
 
+**Important:** Before you can execute actions on the remote server, you must perform a deployment.
 
 ## Usage
 
