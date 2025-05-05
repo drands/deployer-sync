@@ -37,6 +37,8 @@ class SyncExport extends Command
 
         $this->zipFilePath = storage_path() . DIRECTORY_SEPARATOR . $this->zipFileName;
 
+        $this->checkStorageDirectoryPermissions();
+
         $this->cleanUpOldFile();
 
         $onlyClean = $this->option('clean');
@@ -51,10 +53,10 @@ class SyncExport extends Command
             return $this->error('Failed to create ZIP file.');
         }
 
-        $dumpPath = $this->databaseDump();
-        if ($dumpPath) {
+        $dbDumpPath = $this->databaseDump();
+        if ($dbDumpPath) {
+            $this->zip->addFile($dbDumpPath, 'database_dump.sql');
             $this->info('Database dump created successfully.');
-            $this->zip->addFile($dumpPath, 'database_dump.sql');
         } else {
             return $this->error('Failed to create database dump.');
         }
@@ -62,6 +64,8 @@ class SyncExport extends Command
         $this->addUploadedFilesToZip();
 
         $this->zip->close();
+
+        unlink($dbDumpPath); // Remove the database dump file after zip close
 
         $this->info('ZIP file created successfully.');
     }
@@ -82,7 +86,7 @@ class SyncExport extends Command
     {
         $this->info('Creating database dump...');
 
-        $path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'database_dump.sql';
+        $path = storage_path('temp_database_dump.sql');
         $output = "";
         $outputCode = 0;
         $mysqlDumpPath = config('database.connections.mysql.dump_path', 'mysqldump');
@@ -116,5 +120,15 @@ class SyncExport extends Command
             $relativePath = str_replace($basePath . DIRECTORY_SEPARATOR, '', $filePath);
             $this->zip->addFile($filePath, $relativePath);
         }
+    }
+
+    protected function checkStorageDirectoryPermissions()
+    {
+        $storagePath = storage_path();
+        if (!is_writable($storagePath)) {
+            $this->error('Storage directory is not writable. Please check permissions.');
+            exit(1);
+        }
+        $this->info('Storage directory is writable.');
     }
 }
