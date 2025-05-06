@@ -28,6 +28,16 @@ class SyncExport extends Command
 
     protected $zip;
 
+    protected $lockFilePath;
+
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->lockFilePath = storage_path('sync.lock');
+        $this->zipFilePath = storage_path() . DIRECTORY_SEPARATOR . $this->zipFileName;
+    }
+
     /**
      * Execute the console command.
      */
@@ -35,7 +45,7 @@ class SyncExport extends Command
     {
         $this->info('Starting Sync Export...');
 
-        $this->zipFilePath = storage_path() . DIRECTORY_SEPARATOR . $this->zipFileName;
+        $this->checkLockFile();
 
         $this->checkStorageDirectoryPermissions();
 
@@ -130,5 +140,23 @@ class SyncExport extends Command
             exit(1);
         }
         $this->info('Storage directory is writable.');
+    }
+
+    protected function checkLockFile()
+    {
+        if (file_exists($this->lockFilePath)) {
+            $this->error('Another sync process is running. Please wait until it finishes.');
+            exit(1);
+        }
+        file_put_contents($this->lockFilePath, 'locked');
+        register_shutdown_function(function () {
+            $this->removeLockFile();
+        });
+    }
+    protected function removeLockFile()
+    {
+        if (file_exists($this->lockFilePath)) {
+            unlink($this->lockFilePath);
+        }
     }
 }
