@@ -115,7 +115,12 @@ class SyncExport extends Command
         // Redirect stderr to the original stdout (captured by exec()) *before* redirecting
         // stdout to the dump file, so mysqldump errors/warnings don't end up mixed into the
         // dump file's SQL content.
-        $command = "$mysqlDumpPath --user=\"$dbUsername\" --password=\"$dbPassword\" --no-create-info --no-tablespaces --replace --skip-triggers $dbName 2>&1 1>$path";
+        $command = escapeshellarg($mysqlDumpPath)
+            . ' --user=' . escapeshellarg($dbUsername)
+            . ' --password=' . escapeshellarg($dbPassword)
+            . ' --no-create-info --no-tablespaces --replace --skip-triggers '
+            . escapeshellarg($dbName)
+            . ' 2>&1 1>' . escapeshellarg($path);
         exec($command, $output, $outputCode);
         if ($outputCode !== 0) {
             $this->error(implode("\n", $output));

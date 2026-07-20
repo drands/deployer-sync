@@ -18,7 +18,7 @@ task('sync:prod-to-local-s3', function () {
 
 desc('Import files and database from sync_export.zip');
 task('sync:import-from-local', function () {
-    $output = runLocally('{{local_php_path}} artisan sync:import');
+    $output = runLocally(escapeshellarg(get('local_php_path')) . ' artisan sync:import');
     info($output);
 });
 
@@ -27,7 +27,7 @@ task('sync:export-to-local', function () {
     $artisanCommand = 'sync:export';
 
     if (get('s3', false)) {
-        $destPrefix = trim(runLocally('{{local_php_path}} artisan sync:config-value filesystems.disks.s3.root'));
+        $destPrefix = trim(runLocally(escapeshellarg(get('local_php_path')) . ' artisan sync:config-value filesystems.disks.s3.root'));
         $artisanCommand .= ' --s3 --dest-prefix=' . escapeshellarg($destPrefix);
     }
 
@@ -38,7 +38,7 @@ task('sync:export-to-local', function () {
 
 desc('Clone uploaded files from the production bucket to your local development prefix (S3-compatible disks only)');
 task('sync:clone-storage', function () {
-    $destPrefix = trim(runLocally('{{local_php_path}} artisan sync:config-value filesystems.disks.s3.root'));
+    $destPrefix = trim(runLocally(escapeshellarg(get('local_php_path')) . ' artisan sync:config-value filesystems.disks.s3.root'));
     run('cd {{release_or_current_path}} && {{bin/php}} artisan sync:clone-storage --dest-prefix=' . escapeshellarg($destPrefix),
         forceOutput: true);
 });
