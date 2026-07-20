@@ -75,7 +75,14 @@ class SyncImport extends Command
             $dbPassword = config('database.connections.mysql.password', '');
             $dbName = config('database.connections.mysql.database', 'forge');
 
-            exec("$mysqlPath -u$dbUsername -p$dbPassword $dbName < $dbDumpPath 2>&1", $output, $outputCode);
+            $command = "$mysqlPath -u" . escapeshellarg($dbUsername);
+            if ($dbPassword !== '') {
+                // Must stay attached to -p with no space; a bare -p makes mysql prompt interactively.
+                $command .= ' -p' . escapeshellarg($dbPassword);
+            }
+            $command .= ' ' . escapeshellarg($dbName) . " < $dbDumpPath 2>&1";
+
+            exec($command, $output, $outputCode);
 
             if ($outputCode === 0) {
                 $this->info('Database restored successfully.');
