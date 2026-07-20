@@ -48,6 +48,7 @@ class SyncCloneStorage extends Command
         $destPrefix = trim((string) $this->option('dest-prefix'), '/');
 
         $client = $this->buildS3Client($diskConfig);
+        $isPublic = ($diskConfig['visibility'] ?? null) === 'public';
 
         $this->info("Cloning s3://{$sourceBucket}/{$sourceRoot} -> s3://{$devBucket}/{$destPrefix} ...");
 
@@ -86,15 +87,30 @@ class SyncCloneStorage extends Command
                 $seenDestKeys[$destKey] = true;
 
                 if (($destinationEtags[$destKey] ?? null) === $object['ETag']) {
+                    // Content unchanged, but still make sure visibility is correct
+                    // (e.g. objects copied before this ACL fix existed).
+                    if ($isPublic) {
+                        $client->putObjectAcl([
+                            'Bucket' => $devBucket,
+                            'Key' => $destKey,
+                            'ACL' => 'public-read',
+                        ]);
+                    }
                     $skipped++;
                     continue;
                 }
 
-                $client->copyObject([
+                $copyParams = [
                     'Bucket' => $devBucket,
                     'Key' => $destKey,
                     'CopySource' => $sourceBucket . '/' . str_replace('%2F', '/', rawurlencode($key)),
-                ]);
+                ];
+
+                if ($isPublic) {
+                    $copyParams['ACL'] = 'public-read';
+                }
+
+                $client->copyObject($copyParams);
 
                 $copied++;
             }
