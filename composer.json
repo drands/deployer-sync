@@ -21,7 +21,7 @@
         "illuminate/support": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0 || ^13.0"
     },
     "require-dev": {
-        "deployer/deployer": "^7.5"
+        "deployer/deployer": "^8.0"
     },
     "suggest": {
         "aws/aws-sdk-php": "Required by sync:clone-storage when the uploads disk is S3-compatible (already a transitive dependency if you use Laravel's s3 filesystem driver)."

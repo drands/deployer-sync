@@ -26,7 +26,7 @@ task('sync:export-to-local', function () {
     }
 
     run("cd {{release_or_current_path}} && {{bin/php}} artisan $artisanCommand",
-        real_time_output: true);
+        forceOutput: true);
     download('{{release_or_current_path}}/storage/sync_export.zip', 'storage/sync_export.zip');
 });
 
@@ -34,5 +34,5 @@ desc('Clone uploaded files from the production bucket to your local development 
 task('sync:clone-storage', function () {
     $destPrefix = trim(runLocally('{{local_php_path}} artisan sync:config-value filesystems.disks.s3.root'));
     run('cd {{release_or_current_path}} && {{bin/php}} artisan sync:clone-storage --dest-prefix=' . escapeshellarg($destPrefix),
-        real_time_output: true);
+        forceOutput: true);
 });
