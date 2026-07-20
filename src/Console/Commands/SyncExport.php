@@ -13,7 +13,10 @@ class SyncExport extends Command
      *
      * @var string
      */
-    protected $signature = 'sync:export {--clean : Only clean up old files without creating a new ZIP file}';
+    protected $signature = 'sync:export
+        {--clean : Only clean up old files without creating a new ZIP file}
+        {--s3 : Also clone uploaded files from the production bucket to the development bucket}
+        {--dest-prefix= : Prefix to write copies under in the development bucket (used with --s3)}';
 
     /**
      * The console command description.
@@ -78,6 +81,12 @@ class SyncExport extends Command
         unlink($dbDumpPath); // Remove the database dump file after zip close
 
         $this->info('ZIP file created successfully.');
+
+        if ($this->option('s3')) {
+            $this->call(SyncCloneStorage::class, [
+                '--dest-prefix' => $this->option('dest-prefix'),
+            ]);
+        }
     }
 
 
