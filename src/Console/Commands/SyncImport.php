@@ -75,13 +75,14 @@ class SyncImport extends Command
             $dbPassword = config('database.connections.mysql.password', '');
             $dbName = config('database.connections.mysql.database', 'forge');
 
-            exec("$mysqlPath -u$dbUsername -p$dbPassword $dbName < $dbDumpPath", $output, $outputCode);
+            exec("$mysqlPath -u$dbUsername -p$dbPassword $dbName < $dbDumpPath 2>&1", $output, $outputCode);
 
             if ($outputCode === 0) {
                 $this->info('Database restored successfully.');
                 unlink($dbDumpPath); // Remove the dump file after restoring
             } else {
                 $this->error('Failed to restore the database.');
+                $this->error(implode("\n", $output));
                 return;
             }
         } else {

@@ -112,9 +112,13 @@ class SyncExport extends Command
         $dbUsername = config('database.connections.mysql.username', 'root');
         $dbPassword = config('database.connections.mysql.password', '');
         $dbName = config('database.connections.mysql.database', 'forge');
-        $command = "$mysqlDumpPath --user=\"$dbUsername\" --password=\"$dbPassword\" --no-create-info --no-tablespaces --replace --skip-triggers $dbName > $path";
+        // Redirect stderr to the original stdout (captured by exec()) *before* redirecting
+        // stdout to the dump file, so mysqldump errors/warnings don't end up mixed into the
+        // dump file's SQL content.
+        $command = "$mysqlDumpPath --user=\"$dbUsername\" --password=\"$dbPassword\" --no-create-info --no-tablespaces --replace --skip-triggers $dbName 2>&1 1>$path";
         exec($command, $output, $outputCode);
         if ($outputCode !== 0) {
+            $this->error(implode("\n", $output));
             return false;
         }
 
