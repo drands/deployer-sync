@@ -10,6 +10,12 @@ task('sync:prod-to-local', [
     'sync:import-from-local',
 ]);
 
+desc('Sync files and database from remote server to local machine, including S3 file clone');
+task('sync:prod-to-local-s3', function () {
+    set('s3', true);
+    invoke('sync:prod-to-local');
+});
+
 desc('Import files and database from sync_export.zip');
 task('sync:import-from-local', function () {
     $output = runLocally('{{local_php_path}} artisan sync:import');

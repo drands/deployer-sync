@@ -36,11 +36,13 @@ dep sync:prod-to-local
 dep sync:export-to-local
 ```
 
-Add `-o s3=true` (to either command above) to also clone uploaded files from the production
-bucket to your local development bucket, if your uploads disk is S3-compatible:
+### Full sync including S3 file clone (if your uploads disk is S3-compatible)
 ```bash
-dep sync:prod-to-local -o s3=true
+dep sync:prod-to-local-s3
 ```
+
+This is a shortcut for `dep sync:prod-to-local -o s3=true` — `-o s3=true` also works directly
+on `sync:prod-to-local` or `sync:export-to-local` if you'd rather not use the extra task.
 
 ### Only import files and database from sync_export.zip
 ```bash
