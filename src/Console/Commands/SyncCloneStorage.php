@@ -51,13 +51,29 @@ class SyncCloneStorage extends Command
 
         $this->info("Cloning s3://{$sourceBucket}/{$sourceRoot} -> s3://{$devBucket}/{$destPrefix} ...");
 
-        $count = 0;
-        $paginator = $client->getPaginator('ListObjectsV2', [
+        // Existing destination objects, keyed by full key, so we can skip unchanged
+        // files and detect which ones no longer exist in production.
+        $destinationEtags = [];
+        $destPaginator = $client->getPaginator('ListObjectsV2', [
+            'Bucket' => $devBucket,
+            'Prefix' => $destPrefix !== '' ? $destPrefix . '/' : '',
+        ]);
+        foreach ($destPaginator as $result) {
+            foreach ($result['Contents'] ?? [] as $object) {
+                $destinationEtags[$object['Key']] = $object['ETag'];
+            }
+        }
+
+        $seenDestKeys = [];
+        $copied = 0;
+        $skipped = 0;
+
+        $sourcePaginator = $client->getPaginator('ListObjectsV2', [
             'Bucket' => $sourceBucket,
             'Prefix' => $sourceRoot !== '' ? $sourceRoot . '/' : '',
         ]);
 
-        foreach ($paginator as $result) {
+        foreach ($sourcePaginator as $result) {
             foreach ($result['Contents'] ?? [] as $object) {
                 $key = $object['Key'];
 
@@ -67,6 +83,12 @@ class SyncCloneStorage extends Command
 
                 $relative = $sourceRoot !== '' ? Str::after($key, $sourceRoot . '/') : $key;
                 $destKey = $destPrefix !== '' ? $destPrefix . '/' . $relative : $relative;
+                $seenDestKeys[$destKey] = true;
+
+                if (($destinationEtags[$destKey] ?? null) === $object['ETag']) {
+                    $skipped++;
+                    continue;
+                }
 
                 $client->copyObject([
                     'Bucket' => $devBucket,
@@ -74,11 +96,31 @@ class SyncCloneStorage extends Command
                     'CopySource' => $sourceBucket . '/' . str_replace('%2F', '/', rawurlencode($key)),
                 ]);
 
-                $count++;
+                $copied++;
             }
         }
 
-        $this->info("Cloned {$count} objects to s3://{$devBucket}/{$destPrefix}.");
+        // Remove destination objects that no longer exist in production, so the
+        // development prefix stays a mirror instead of accumulating stale files.
+        $staleKeys = array_diff(array_keys($destinationEtags), array_keys($seenDestKeys));
+        foreach (array_chunk($staleKeys, 1000) as $chunk) {
+            $client->deleteObjects([
+                'Bucket' => $devBucket,
+                'Delete' => [
+                    'Objects' => array_map(fn ($key) => ['Key' => $key], $chunk),
+                    'Quiet' => true,
+                ],
+            ]);
+        }
+
+        $this->info(sprintf(
+            'Copied %d, skipped %d unchanged, removed %d stale objects in s3://%s/%s.',
+            $copied,
+            $skipped,
+            count($staleKeys),
+            $devBucket,
+            $destPrefix
+        ));
     }
 
     protected function buildS3Client(array $diskConfig): S3Client

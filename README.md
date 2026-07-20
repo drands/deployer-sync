@@ -85,5 +85,10 @@ SYNC_DEV_BUCKET=your-dev-bucket-name
 SYNC_DISK=s3
 ```
 
+`sync:clone-storage` mirrors production into your development prefix: unchanged files (matched
+by ETag) are skipped, and any file under your prefix that no longer exists in production is
+**deleted**, including files you may have uploaded manually while testing locally. It's safe
+and idempotent to run repeatedly.
+
 If the configured uploads disk isn't S3-compatible, `--s3` is a no-op and `storage/app` files
 continue to sync through the existing ZIP-based flow.
