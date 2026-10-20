@@ -17,4 +17,13 @@ return [
      */
     'dev_bucket' => env('SYNC_DEV_BUCKET'),
 
+    /*
+     * Tables left out of the database dump made by "sync:export".
+     * Supports "*" wildcards (e.g. phpMyAdmin's configuration storage tables),
+     * since tables that don't exist locally make the import fail.
+     */
+    'exclude_tables' => [
+        'pma__*',
+    ],
+
 ];

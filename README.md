@@ -54,6 +54,12 @@ dep sync:import-from-local
 dep sync:clone-storage
 ```
 
+## Excluding tables from the database dump
+
+The dump only contains data, so any table that doesn't exist locally makes the import fail.
+Tables matching the `exclude_tables` patterns in `config/deployer-sync.php` are skipped
+(`*` wildcards allowed). By default this covers phpMyAdmin's configuration storage (`pma__*`).
+
 ## Syncing uploaded files on S3-compatible storage (e.g. DigitalOcean Spaces)
 
 `sync:export`/`sync:export-to-local` only handle files that live on local disk (`storage/app`)

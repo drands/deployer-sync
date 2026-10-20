@@ -3,6 +3,7 @@
 namespace Drands\DeployerSync\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
@@ -119,6 +120,7 @@ class SyncExport extends Command
             . ' --user=' . escapeshellarg($dbUsername)
             . ' --password=' . escapeshellarg($dbPassword)
             . ' --no-create-info --no-tablespaces --replace --skip-triggers '
+            . $this->ignoreTableOptions($dbName)
             . escapeshellarg($dbName)
             . ' 2>&1 1>' . escapeshellarg($path);
         exec($command, $output, $outputCode);
@@ -128,6 +130,30 @@ class SyncExport extends Command
         }
 
         return $path;
+    }
+
+    /**
+     * Build the --ignore-table options for the tables matching the configured exclude patterns.
+     * mysqldump doesn't support wildcards, so patterns are resolved against the existing tables.
+     */
+    protected function ignoreTableOptions(string $dbName): string
+    {
+        $patterns = config('deployer-sync.exclude_tables', []);
+        if (empty($patterns)) {
+            return '';
+        }
+
+        $tables = array_map(fn ($row) => array_values((array) $row)[0], DB::select('SHOW TABLES'));
+
+        $options = '';
+        foreach ($tables as $table) {
+            if (Str::is($patterns, $table)) {
+                $this->info('Excluding table: ' . $table);
+                $options .= '--ignore-table=' . escapeshellarg($dbName . '.' . $table) . ' ';
+            }
+        }
+
+        return $options;
     }
 
     protected function addUploadedFilesToZip()
