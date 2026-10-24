@@ -2,6 +2,8 @@
 
 namespace Drands\DeployerSync\Console\Commands;
 
+use Drands\DeployerSync\Anonymization\Strategies;
+use Drands\DeployerSync\Anonymization\SyncSchema;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -34,6 +36,8 @@ class SyncExport extends Command
 
     protected $lockFilePath;
 
+    protected SyncSchema $schema;
+
 
     public function __construct()
     {
@@ -59,6 +63,19 @@ class SyncExport extends Command
         if ($onlyClean) {
             $this->info('Clean option is set. Only cleaning up old files.');
             return;
+        }
+
+        // Refuse to export anything while some table's data isn't declared as kept, excluded or anonymized.
+        $this->schema = SyncSchema::make();
+        $issues = $this->schema->issues(strict: false);
+        if ($issues) {
+            $this->error($this->schema->relativePath() . ' is not up to date, exporting could leak personal data:');
+            foreach ($issues as $issue) {
+                $this->line('  - ' . $issue);
+            }
+            $this->error('Run "php artisan sync:check --fix" locally, review the result, commit and deploy it.');
+
+            return self::FAILURE;
         }
 
         $this->info('Creating ZIP file...');
@@ -129,31 +146,126 @@ class SyncExport extends Command
             return false;
         }
 
+        $this->appendAnonymizedTables($path);
+
         return $path;
     }
 
     /**
-     * Build the --ignore-table options for the tables matching the configured exclude patterns.
+     * Build the --ignore-table options for the tables matching the configured exclude patterns,
+     * the ones excluded in the sync schema and the anonymized ones (dumped by appendAnonymizedTables()).
      * mysqldump doesn't support wildcards, so patterns are resolved against the existing tables.
      */
     protected function ignoreTableOptions(string $dbName): string
     {
         $patterns = config('deployer-sync.exclude_tables', []);
-        if (empty($patterns)) {
-            return '';
-        }
+        $skipped = $this->schema->tablesSkippedByMysqldump();
+        $anonymized = $this->schema->anonymizedTables();
 
         $tables = array_map(fn ($row) => array_values((array) $row)[0], DB::select('SHOW TABLES'));
 
         $options = '';
         foreach ($tables as $table) {
-            if (Str::is($patterns, $table)) {
-                $this->info('Excluding table: ' . $table);
+            if (Str::is($patterns, $table) || in_array($table, $skipped, true)) {
+                if (!isset($anonymized[$table])) {
+                    $this->info('Excluding table: ' . $table);
+                }
                 $options .= '--ignore-table=' . escapeshellarg($dbName . '.' . $table) . ' ';
             }
         }
 
         return $options;
+    }
+
+    /**
+     * Append the anonymized tables to the dump, in the same format mysqldump uses (REPLACE INTO).
+     * Rows are read in chunks and Faker is seeded per row, so every export generates the same fake values.
+     */
+    protected function appendAnonymizedTables(string $path)
+    {
+        $tables = $this->schema->anonymizedTables();
+        if (!$tables) {
+            return;
+        }
+
+        $file = fopen($path, 'a');
+        // Same session settings as mysqldump's header, which its footer resets before our rows.
+        fwrite($file, "\n-- Anonymized tables (drands/deployer-sync)\n"
+            . "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\nSET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';\n");
+
+        foreach ($tables as $table => $strategies) {
+            $this->info('Anonymizing table: ' . $table);
+            $this->dumpAnonymizedTable($file, $table, $strategies);
+        }
+
+        fwrite($file, "SET FOREIGN_KEY_CHECKS=1;\n");
+        fclose($file);
+    }
+
+    protected function dumpAnonymizedTable($file, string $table, array $strategies)
+    {
+        $columns = collect($this->schema->columns($table))->keyBy('name');
+        $primaryKey = $this->schema->inspector()->primaryKey($table);
+        $anonymizer = $this->schema->strategies();
+        $pdo = DB::getPdo();
+
+        $query = DB::table($table);
+        if (count($primaryKey) === 1) {
+            $rows = $query->lazyById(1000, $primaryKey[0]);
+        } else {
+            foreach ($primaryKey ?: $columns->keys()->all() as $column) {
+                $query->orderBy($column);
+            }
+            $rows = $query->lazy(1000);
+        }
+
+        $insert = 'REPLACE INTO ' . $this->quoteIdentifier($table) . ' ('
+            . $columns->keys()->map(fn ($column) => $this->quoteIdentifier($column))->implode(',') . ') VALUES ';
+        $batch = [];
+
+        foreach ($rows as $row) {
+            $row = (array) $row;
+            $rowKey = $primaryKey
+                ? implode('-', array_map(fn ($column) => $row[$column], $primaryKey))
+                : md5(serialize($row));
+            $anonymizer->faker()->seed(crc32($table . '|' . $rowKey));
+
+            $values = [];
+            foreach ($columns as $name => $column) {
+                $strategy = $strategies[$name];
+                $value = $anonymizer->apply($strategy, $row[$name], $row, $rowKey);
+                if ($strategy !== Strategies::KEEP && is_string($value) && $column['max_length'] && mb_strlen($value) > $column['max_length']) {
+                    $value = mb_substr($value, 0, $column['max_length']);
+                }
+                $values[] = $this->sqlValue($value, $pdo);
+            }
+            $batch[] = '(' . implode(',', $values) . ')';
+
+            if (count($batch) === 500) {
+                fwrite($file, $insert . implode(',', $batch) . ";\n");
+                $batch = [];
+            }
+        }
+
+        if ($batch) {
+            fwrite($file, $insert . implode(',', $batch) . ";\n");
+        }
+    }
+
+    protected function sqlValue(mixed $value, \PDO $pdo): string
+    {
+        return match (true) {
+            $value === null => 'NULL',
+            is_bool($value) => (string) (int) $value,
+            is_int($value), is_float($value) => (string) $value,
+            mb_check_encoding((string) $value, 'UTF-8') => $pdo->quote((string) $value),
+            default => '0x' . bin2hex($value), // Binary data
+        };
+    }
+
+    protected function quoteIdentifier(string $name): string
+    {
+        return '`' . str_replace('`', '``', $name) . '`';
     }
 
     protected function addUploadedFilesToZip()

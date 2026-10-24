@@ -26,4 +26,15 @@ return [
         'pma__*',
     ],
 
+    /*
+     * File declaring how every table is exported (kept, excluded or anonymized).
+     * Leave null for database/sync-schema.php. Maintained with "php artisan sync:check --fix".
+     */
+    'schema_path' => null,
+
+    /*
+     * Locale of the Faker instance used to anonymize data. Leave null to use app.faker_locale.
+     */
+    'faker_locale' => null,
+
 ];
