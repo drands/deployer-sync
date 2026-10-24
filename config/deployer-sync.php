@@ -27,6 +27,15 @@ return [
     ],
 
     /*
+     * Paths of the mysqldump (used by "sync:export") and mysql (used by "sync:import") binaries.
+     * mysqldump_path falls back to database.connections.mysql.dump_path, then to "mysqldump".
+     * Host, port or socket and credentials come from database.connections.mysql.
+     */
+    'mysqldump_path' => env('SYNC_MYSQLDUMP_PATH'),
+
+    'mysql_path' => env('SYNC_MYSQL_PATH', 'mysql'),
+
+    /*
      * File declaring how every table is exported (kept, excluded or anonymized).
      * Leave null for database/sync-schema.php. Maintained with "php artisan sync:check --fix".
      */

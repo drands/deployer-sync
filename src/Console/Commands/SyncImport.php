@@ -2,11 +2,14 @@
 
 namespace Drands\DeployerSync\Console\Commands;
 
+use Drands\DeployerSync\Console\Commands\Concerns\MysqlConnectionOptions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
 class SyncImport extends Command
 {
+    use MysqlConnectionOptions;
+
     /**
      * The name and signature of the console command.
      *
@@ -37,7 +40,7 @@ class SyncImport extends Command
         // Check if the ZIP file exists
         if (!file_exists($zipFilePath)) {
             $this->error('ZIP file not found. Please create it first using sync:export.');
-            return;
+            return self::FAILURE;
         }
 
         $this->info('Unzipping the file...');
@@ -56,7 +59,7 @@ class SyncImport extends Command
             $this->info('Unzipped successfully.');
         } else {
             $this->error('Failed to unzip the file.');
-            return;
+            return self::FAILURE;
         }
 
         $this->info('Restoring database...');
@@ -70,12 +73,12 @@ class SyncImport extends Command
 
             $output = "";
             $outputCode = 0;
-            $mysqlPath = config('database.connections.mysql.dump_path', 'mysql');
+            $mysqlPath = config('deployer-sync.mysql_path') ?: 'mysql';
             $dbUsername = config('database.connections.mysql.username', 'root');
             $dbPassword = config('database.connections.mysql.password', '');
             $dbName = config('database.connections.mysql.database', 'forge');
 
-            $command = escapeshellarg($mysqlPath) . ' -u' . escapeshellarg($dbUsername);
+            $command = escapeshellarg($mysqlPath) . $this->mysqlConnectionOptions() . ' -u' . escapeshellarg($dbUsername);
             if ($dbPassword !== '') {
                 // Must stay attached to -p with no space; a bare -p makes mysql prompt interactively.
                 $command .= ' -p' . escapeshellarg($dbPassword);
@@ -90,11 +93,11 @@ class SyncImport extends Command
             } else {
                 $this->error('Failed to restore the database.');
                 $this->error(implode("\n", $output));
-                return;
+                return self::FAILURE;
             }
         } else {
             $this->error('Database dump file not found.');
-            return;
+            return self::FAILURE;
         }
 
         $this->info('Restoring uploaded files...');

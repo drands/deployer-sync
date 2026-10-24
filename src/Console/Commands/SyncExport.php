@@ -4,6 +4,7 @@ namespace Drands\DeployerSync\Console\Commands;
 
 use Drands\DeployerSync\Anonymization\Strategies;
 use Drands\DeployerSync\Anonymization\SyncSchema;
+use Drands\DeployerSync\Console\Commands\Concerns\MysqlConnectionOptions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
 
 class SyncExport extends Command
 {
+    use MysqlConnectionOptions;
+
     /**
      * The name and signature of the console command.
      *
@@ -81,7 +84,8 @@ class SyncExport extends Command
         $this->info('Creating ZIP file...');
         $this->zip = new \ZipArchive();
         if ($this->zip->open($this->zipFilePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-            return $this->error('Failed to create ZIP file.');
+            $this->error('Failed to create ZIP file.');
+            return self::FAILURE;
         }
 
         $dbDumpPath = $this->databaseDump();
@@ -89,7 +93,8 @@ class SyncExport extends Command
             $this->zip->addFile($dbDumpPath, 'database_dump.sql');
             $this->info('Database dump created successfully.');
         } else {
-            return $this->error('Failed to create database dump.');
+            $this->error('Failed to create database dump.');
+            return self::FAILURE;
         }
 
         $this->addUploadedFilesToZip();
@@ -126,7 +131,7 @@ class SyncExport extends Command
         $path = storage_path('temp_database_dump.sql');
         $output = "";
         $outputCode = 0;
-        $mysqlDumpPath = config('database.connections.mysql.dump_path', 'mysqldump');
+        $mysqlDumpPath = config('deployer-sync.mysqldump_path') ?: config('database.connections.mysql.dump_path') ?: 'mysqldump';
         $dbUsername = config('database.connections.mysql.username', 'root');
         $dbPassword = config('database.connections.mysql.password', '');
         $dbName = config('database.connections.mysql.database', 'forge');
@@ -134,6 +139,7 @@ class SyncExport extends Command
         // stdout to the dump file, so mysqldump errors/warnings don't end up mixed into the
         // dump file's SQL content.
         $command = escapeshellarg($mysqlDumpPath)
+            . $this->mysqlConnectionOptions()
             . ' --user=' . escapeshellarg($dbUsername)
             . ' --password=' . escapeshellarg($dbPassword)
             . ' --no-create-info --no-tablespaces --replace --skip-triggers '

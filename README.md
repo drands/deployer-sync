@@ -24,6 +24,10 @@ local_php_path: php
 
 **Important:** Before you can execute actions on the remote server, you must perform a deployment.
 
+`mysqldump` and `mysql` connect with the app's `mysql` connection settings (host and port, or
+`unix_socket`). If they aren't in the `PATH`, set their paths with `SYNC_MYSQLDUMP_PATH` and
+`SYNC_MYSQL_PATH` (`database.connections.mysql.dump_path` is still honored for `mysqldump`).
+
 ## Usage
 
 ### Full sync files and database from remote server to local machine
