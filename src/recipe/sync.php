@@ -27,18 +27,29 @@ task('sync:import-from-local', function () {
 
 desc('Create or update a local admin user (run after sync:import-from-local; disable with set(\'sync_local_admin\', false))');
 task('sync:local-admin', function () {
-    if (!get('sync_local_admin', true) || !askConfirmation('Create or update a local admin user?', true)) {
+    if (!get('sync_local_admin', true)) {
         return;
     }
 
     $artisan = escapeshellarg(get('local_php_path')) . ' artisan sync:local-admin';
     $defaults = json_decode(runLocally("$artisan --defaults"), true);
+    $ask = $defaults['ask_defaults']; // false: update the default id with the .env values, asking only for empty fields
 
-    $create = askConfirmation('Create a new user instead of updating an existing one?', false);
-    $options = $create ? ' --create' : ' --id=' . escapeshellarg((string) ask('Id of the user to update', $defaults['id']));
+    if ($ask && !askConfirmation('Create or update a local admin user?', true)) {
+        return;
+    }
+
+    $create = $ask && askConfirmation('Create a new user instead of updating an existing one?', false);
+    $options = $create ? ' --create' : ' --id=' . escapeshellarg($ask ? (string) ask('Id of the user to update', $defaults['id']) : $defaults['id']);
 
     foreach ($defaults['fields'] as $field => $default) {
-        $value = ask(ucfirst(str_replace('_', ' ', $field)), $default === null ? null : (string) $default);
+        $default = $default === null || $default === '' ? null : (string) $default;
+        $label = ucfirst(str_replace('_', ' ', $field));
+        $value = match (true) {
+            !$ask && $default !== null => $default,
+            $field === 'password' && $default === null => askHiddenResponse($label . ' (empty keeps the imported one)'),
+            default => ask($label, $default),
+        };
         if ($value !== null && $value !== '') {
             $options .= ' --field=' . escapeshellarg("$field=$value");
         }

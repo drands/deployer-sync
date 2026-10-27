@@ -52,6 +52,8 @@ return [
      * with the anonymized production ones.
      *
      * - model:      Eloquent model of the users that log into the admin.
+     * - ask_defaults: false skips every question that already has an answer (SYNC_ADMIN_ASK_DEFAULTS=false):
+     *               the default id is updated with the configured values and only empty fields are asked for.
      * - id:         primary key updated by default (the alternative is creating a new user).
      * - fields:     columns asked for, with their defaults (set them in your .env). Empty values keep
      *               what the imported row has. "password" is hashed.
@@ -60,6 +62,7 @@ return [
      */
     'local_admin' => [
         'model' => env('SYNC_ADMIN_MODEL', 'App\\Models\\User'),
+        'ask_defaults' => env('SYNC_ADMIN_ASK_DEFAULTS', true),
         'id' => 1,
         'fields' => [
             'name' => env('SYNC_ADMIN_NAME'),

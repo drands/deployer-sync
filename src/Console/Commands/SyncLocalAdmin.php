@@ -35,6 +35,7 @@ class SyncLocalAdmin extends Command
         if ($this->option('defaults')) {
             $this->line(json_encode([
                 'id' => (string) $this->config('id', 1),
+                'ask_defaults' => (bool) $this->config('ask_defaults', true),
                 'fields' => $this->config('fields', []),
             ]));
 

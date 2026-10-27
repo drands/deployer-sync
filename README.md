@@ -139,13 +139,16 @@ SYNC_ADMIN_EMAIL=you@example.com
 SYNC_ADMIN_PASSWORD=your-local-password
 ```
 
-Fields left empty keep what the imported user has. If your admin users aren't `App\Models\User` with
+Fields left empty keep what the imported user has. With `SYNC_ADMIN_ASK_DEFAULTS=false` nothing that already
+has a value is asked: user `1` is updated with your `.env` values and you're only asked for the empty ones
+(typically the password, which is then typed hidden). If your admin users aren't `App\Models\User` with
 `name`/`email`/`password`, override `local_admin` in `config/deployer-sync.php` (only that key is needed):
 
 ```php
 return [
     'local_admin' => [
         'model' => \App\Models\Admin::class,
+        'ask_defaults' => env('SYNC_ADMIN_ASK_DEFAULTS', true),
         'id' => 1,
         'fields' => [                       // asked for, with their defaults
             'first_name' => env('SYNC_ADMIN_FIRST_NAME'),
