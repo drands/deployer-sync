@@ -42,12 +42,16 @@ task('sync:local-admin', function () {
     $create = $ask && askConfirmation('Create a new user instead of updating an existing one?', false);
     $options = $create ? ' --create' : ' --id=' . escapeshellarg($ask ? (string) ask('Id of the user to update', $defaults['id']) : $defaults['id']);
 
+    if (!$ask) {
+        info("Restoring the local admin: updating user #{$defaults['id']} with the SYNC_ADMIN_* values from your .env");
+    }
+
     foreach ($defaults['fields'] as $field => $default) {
         $default = $default === null || $default === '' ? null : (string) $default;
         $label = ucfirst(str_replace('_', ' ', $field));
         $value = match (true) {
             !$ask && $default !== null => $default,
-            $field === 'password' && $default === null => askHiddenResponse($label . ' (empty keeps the imported one)'),
+            $field === 'password' && $default === null => askHiddenResponse('Local admin password (empty keeps the imported one)'),
             default => ask($label, $default),
         };
         if ($value !== null && $value !== '') {
