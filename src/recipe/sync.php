@@ -20,6 +20,9 @@ desc('Import files and database from sync_export.zip');
 task('sync:import-from-local', function () {
     $output = runLocally(escapeshellarg(get('local_php_path')) . ' artisan sync:import');
     info($output);
+
+    // Not an after() hook: those are skipped when the task runs through invoke() (e.g. sync:prod-to-local-s3).
+    invoke('sync:local-admin');
 });
 
 desc('Create or update a local admin user (run after sync:import-from-local; disable with set(\'sync_local_admin\', false))');
@@ -43,8 +46,6 @@ task('sync:local-admin', function () {
 
     info(runLocally($artisan . $options));
 });
-
-after('sync:import-from-local', 'sync:local-admin');
 
 desc('Export files and database from remote server and download to local machine');
 task('sync:export-to-local', function () {
