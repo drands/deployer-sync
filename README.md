@@ -127,6 +127,42 @@ the first artisan command if the package wasn't discovered yet). Review them in 
 
 Run `php artisan sync:install-claude` to install them manually (`--force` also overwrites the test).
 
+## Restoring your local admin after an import
+
+The import replaces your local users with the anonymized production ones, so `dep sync:import-from-local`
+(and therefore `dep sync:prod-to-local`) then asks whether to create or update a local admin: by default it
+updates user `1`, with the name, email and password pre-filled from your `.env`:
+
+```dotenv
+SYNC_ADMIN_NAME="Your Name"
+SYNC_ADMIN_EMAIL=you@example.com
+SYNC_ADMIN_PASSWORD=your-local-password
+```
+
+Fields left empty keep what the imported user has. If your admin users aren't `App\Models\User` with
+`name`/`email`/`password`, override `local_admin` in `config/deployer-sync.php` (only that key is needed):
+
+```php
+return [
+    'local_admin' => [
+        'model' => \App\Models\Admin::class,
+        'id' => 1,
+        'fields' => [                       // asked for, with their defaults
+            'first_name' => env('SYNC_ADMIN_FIRST_NAME'),
+            'last_name' => env('SYNC_ADMIN_LAST_NAME'),
+            'email' => env('SYNC_ADMIN_EMAIL'),
+            'password' => env('SYNC_ADMIN_PASSWORD'), // hashed
+        ],
+        'attributes' => ['is_admin' => true],          // forced on the restored admin
+        'reset' => ['remember_token', 'two_factor_secret'], // set to NULL
+    ],
+];
+```
+
+The same runs without prompts with `php artisan sync:local-admin` (options: `--create`, `--id=`,
+`--field=name=value`). It refuses to run in production. To skip the question in Deployer, add
+`set('sync_local_admin', false);` to your `deploy.php`.
+
 ## Excluding tables from the database dump
 
 The dump only contains data, so any table that doesn't exist locally makes the import fail.

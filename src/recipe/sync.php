@@ -22,6 +22,30 @@ task('sync:import-from-local', function () {
     info($output);
 });
 
+desc('Create or update a local admin user (run after sync:import-from-local; disable with set(\'sync_local_admin\', false))');
+task('sync:local-admin', function () {
+    if (!get('sync_local_admin', true) || !askConfirmation('Create or update a local admin user?', true)) {
+        return;
+    }
+
+    $artisan = escapeshellarg(get('local_php_path')) . ' artisan sync:local-admin';
+    $defaults = json_decode(runLocally("$artisan --defaults"), true);
+
+    $create = askChoice('Update an existing user or create a new one?', ['update', 'create'], 'update') === 'create';
+    $options = $create ? ' --create' : ' --id=' . escapeshellarg((string) ask('Id of the user to update', $defaults['id']));
+
+    foreach ($defaults['fields'] as $field => $default) {
+        $value = ask(ucfirst(str_replace('_', ' ', $field)), $default === null ? null : (string) $default);
+        if ($value !== null && $value !== '') {
+            $options .= ' --field=' . escapeshellarg("$field=$value");
+        }
+    }
+
+    info(runLocally($artisan . $options));
+});
+
+after('sync:import-from-local', 'sync:local-admin');
+
 desc('Export files and database from remote server and download to local machine');
 task('sync:export-to-local', function () {
     $artisanCommand = 'sync:export';

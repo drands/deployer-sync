@@ -22,6 +22,7 @@ class DeployerSyncServiceProvider extends ServiceProvider
                 \Drands\DeployerSync\Console\Commands\SyncConfigValue::class,
                 \Drands\DeployerSync\Console\Commands\SyncCheck::class,
                 \Drands\DeployerSync\Console\Commands\SyncInstallClaude::class,
+                \Drands\DeployerSync\Console\Commands\SyncLocalAdmin::class,
             ]);
 
             $this->publishes([

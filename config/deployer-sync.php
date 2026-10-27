@@ -46,4 +46,28 @@ return [
      */
     'faker_locale' => null,
 
+    /*
+     * Admin user restored by "php artisan sync:local-admin", which "dep sync:import-from-local" (and so
+     * "dep sync:prod-to-local") offers to run after importing, since the import replaces your local users
+     * with the anonymized production ones.
+     *
+     * - model:      Eloquent model of the users that log into the admin.
+     * - id:         primary key updated by default (the alternative is creating a new user).
+     * - fields:     columns asked for, with their defaults (set them in your .env). Empty values keep
+     *               what the imported row has. "password" is hashed.
+     * - attributes: values forced on every restored admin, e.g. ['is_admin' => true].
+     * - reset:      columns set to NULL, e.g. remember tokens or 2FA secrets.
+     */
+    'local_admin' => [
+        'model' => env('SYNC_ADMIN_MODEL', 'App\\Models\\User'),
+        'id' => 1,
+        'fields' => [
+            'name' => env('SYNC_ADMIN_NAME'),
+            'email' => env('SYNC_ADMIN_EMAIL'),
+            'password' => env('SYNC_ADMIN_PASSWORD'),
+        ],
+        'attributes' => [],
+        'reset' => ['remember_token'],
+    ],
+
 ];
