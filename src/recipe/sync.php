@@ -34,7 +34,7 @@ task('sync:local-admin', function () {
     $artisan = escapeshellarg(get('local_php_path')) . ' artisan sync:local-admin';
     $defaults = json_decode(runLocally("$artisan --defaults"), true);
 
-    $create = askChoice('Update an existing user or create a new one?', ['update', 'create'], 'update') === 'create';
+    $create = askConfirmation('Create a new user instead of updating an existing one?', false);
     $options = $create ? ' --create' : ' --id=' . escapeshellarg((string) ask('Id of the user to update', $defaults['id']));
 
     foreach ($defaults['fields'] as $field => $default) {
