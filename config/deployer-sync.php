@@ -26,4 +26,22 @@ return [
         'pma__*',
     ],
 
+    /*
+     * Extensions of uploaded files added to the ZIP without compression: they are already compressed,
+     * so deflating them barely shrinks the ZIP but makes "sync:export" several times slower.
+     */
+    'store_uncompressed' => [
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic',
+        'mp4', 'mov', 'webm', 'mp3', 'm4a',
+        'pdf', 'zip', 'gz', 'rar', '7z',
+        'docx', 'xlsx', 'pptx', 'odt', 'ods',
+        'woff', 'woff2',
+    ],
+
+    /*
+     * Top-level paths inside storage/app (e.g. 'imports') that "sync:import" keeps instead of replacing
+     * them with the production ones: local-only working files. Production files under them are discarded.
+     */
+    'keep_local_paths' => [],
+
 ];

@@ -54,6 +54,30 @@ dep sync:import-from-local
 dep sync:clone-storage
 ```
 
+## Large uploads, timeouts and MariaDB dumps
+
+- **Timeout:** the remote export and the local import may run for up to `sync_timeout` seconds
+  (default `3600`; Deployer's own `default_timeout` is 300). Change it with `set('sync_timeout', 7200);`
+  in your `deploy.php` or under `config:` in `deploy.yml`. The download has no timeout.
+- **Memory:** `sync:export` walks `storage/app` lazily, so the number of uploaded files doesn't raise
+  its memory usage (a 128 MB `memory_limit` is enough).
+- **Compression:** files whose extension is in `store_uncompressed` (images, videos, PDFs, archives,
+  office files…) are stored in the ZIP as is: deflating them barely shrinks it but makes the export
+  several times slower. Adjust the list in `config/deployer-sync.php`.
+- **MariaDB to MySQL:** `sync:import` drops the sandbox-mode first line of `mariadb-dump` 11.x dumps
+  (`/*M!999999\- enable the sandbox mode */`), which the MySQL client rejects. Stored generated columns
+  (e.g. Laravel's `storedAs()`) become plain columns while the dump loads, since MySQL refuses values for
+  them, and are generated again afterwards.
+- **Local-only files:** top-level paths of `storage/app` listed in `keep_local_paths` (e.g. `'imports'`)
+  are kept by `sync:import` instead of being replaced by the production ones:
+
+```php
+// config/deployer-sync.php
+return [
+    'keep_local_paths' => ['imports'],
+];
+```
+
 ## Excluding tables from the database dump
 
 The dump only contains data, so any table that doesn't exist locally makes the import fail.

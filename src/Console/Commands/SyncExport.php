@@ -4,7 +4,6 @@ namespace Drands\DeployerSync\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class SyncExport extends Command
@@ -160,20 +159,43 @@ class SyncExport extends Command
     {
         $this->info('Adding uploaded files to ZIP...');
 
-        // add all files from the storage/app/* directories excluding the livewire-tmp directory, keep the directory structure
+        // Walk storage/app lazily, keeping the directory structure and skipping livewire-tmp.
+        // File::allFiles() would hold (and sort) every file in memory: ~10 KB each, so 12k files
+        // already exceed a 128 MB memory_limit.
         $basePath = storage_path('app');
-        $files = File::allFiles($basePath, hidden: true);
+        $directories = new \RecursiveDirectoryIterator($basePath, \FilesystemIterator::SKIP_DOTS);
+        $withoutLivewireTmp = new \RecursiveCallbackFilterIterator(
+            $directories,
+            fn (\SplFileInfo $file) => !($file->isDir() && $file->getFilename() === 'livewire-tmp')
+        );
 
-        foreach ($files as $file) {
-            $filePath = $file->getPathname();
-
-            if (Str::contains($filePath, 'livewire-tmp')) {
+        $count = 0;
+        foreach (new \RecursiveIteratorIterator($withoutLivewireTmp) as $file) {
+            if (!$file->isFile()) {
                 continue;
             }
 
-            $relativePath = str_replace($basePath . DIRECTORY_SEPARATOR, '', $filePath);
-            $this->zip->addFile($filePath, $relativePath);
+            $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen($basePath) + 1));
+            $this->zip->addFile($file->getPathname(), $relativePath);
+
+            if ($this->isAlreadyCompressed($relativePath)) {
+                $this->zip->setCompressionName($relativePath, \ZipArchive::CM_STORE);
+            }
+
+            $count++;
         }
+
+        $this->info("Added $count files.");
+    }
+
+    /**
+     * Deflating images, videos or office files barely shrinks them (~4%) but makes closing the ZIP ~8 times slower.
+     */
+    protected function isAlreadyCompressed(string $path): bool
+    {
+        $extensions = config('deployer-sync.store_uncompressed', []);
+
+        return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $extensions, true);
     }
 
     protected function checkStorageDirectoryPermissions()
