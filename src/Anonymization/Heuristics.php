@@ -84,7 +84,7 @@ class Heuristics
     /**
      * Suggested strategy for a column: a strategy for columns that look personal, 'keep' otherwise.
      *
-     * @param array{name: string, nullable: bool, max_length: ?int} $column
+     * @param array{name: string, nullable: bool, max_length: ?int, generated: bool} $column
      */
     public function suggest(string $table, array $column): ?string
     {

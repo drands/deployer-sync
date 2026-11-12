@@ -4,6 +4,10 @@ namespace Deployer;
 
 add('recipes', ['sync']);
 
+// Max seconds for the remote export and the local import: Deployer's default_timeout (300)
+// isn't enough for a few GB of uploads. The download has no timeout.
+set('sync_timeout', 3600);
+
 desc('Sync files and database from remote server to local machine');
 task('sync:prod-to-local', [
     'sync:export-to-local',
@@ -18,7 +22,7 @@ task('sync:prod-to-local-s3', function () {
 
 desc('Import files and database from sync_export.zip');
 task('sync:import-from-local', function () {
-    $output = runLocally(escapeshellarg(get('local_php_path')) . ' artisan sync:import');
+    $output = runLocally(escapeshellarg(get('local_php_path')) . ' artisan sync:import', timeout: get('sync_timeout'));
     info($output);
 
     // Not an after() hook: those are skipped when the task runs through invoke() (e.g. sync:prod-to-local-s3).
@@ -72,7 +76,7 @@ task('sync:export-to-local', function () {
     }
 
     run("cd {{release_or_current_path}} && {{bin/php}} artisan $artisanCommand",
-        forceOutput: true);
+        forceOutput: true, timeout: get('sync_timeout'));
     download('{{release_or_current_path}}/storage/sync_export.zip', 'storage/sync_export.zip');
 });
 
@@ -80,5 +84,5 @@ desc('Clone uploaded files from the production bucket to your local development 
 task('sync:clone-storage', function () {
     $destPrefix = trim(runLocally(escapeshellarg(get('local_php_path')) . ' artisan sync:config-value filesystems.disks.s3.root'));
     run('cd {{release_or_current_path}} && {{bin/php}} artisan sync:clone-storage --dest-prefix=' . escapeshellarg($destPrefix),
-        forceOutput: true);
+        forceOutput: true, timeout: get('sync_timeout'));
 });
