@@ -22,7 +22,7 @@
         "fakerphp/faker": "^1.9.1"
     },
     "require-dev": {
-        "deployer/deployer": "^8.0"
+        "deployer/deployer": "^7.3 || ^8.0"
     },
     "suggest": {
         "aws/aws-sdk-php": "Required by sync:clone-storage when the uploads disk is S3-compatible (already a transitive dependency if you use Laravel's s3 filesystem driver)."

@@ -24,6 +24,9 @@ local_php_path: php
 
 **Important:** Before you can execute actions on the remote server, you must perform a deployment.
 
+The recipe works with Deployer 7.3+ and 8. Deployer isn't a requirement of the package: it's whatever
+`dep` you run (e.g. your project's `deployer/deployer` dev dependency).
+
 `mysqldump` and `mysql` connect with the app's `mysql` connection settings (host and port, or
 `unix_socket`). If they aren't in the `PATH`, set their paths with `SYNC_MYSQLDUMP_PATH` and
 `SYNC_MYSQL_PATH` (`database.connections.mysql.dump_path` is still honored for `mysqldump`).
