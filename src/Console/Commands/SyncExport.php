@@ -8,7 +8,6 @@ use Drands\DeployerSync\Console\Commands\Concerns\MysqlConnectionOptions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Symfony\Component\Finder\Finder;
 
 class SyncExport extends Command
 {
@@ -212,7 +211,8 @@ class SyncExport extends Command
 
     protected function dumpAnonymizedTable($file, string $table, array $strategies)
     {
-        $columns = collect($this->schema->columns($table))->keyBy('name');
+        // Generated columns are recomputed on import; MySQL rejects any value given for them (error 3105).
+        $columns = collect($this->schema->columns($table))->reject(fn ($column) => $column['generated'])->keyBy('name');
         $primaryKey = $this->schema->inspector()->primaryKey($table);
         $anonymizer = $this->schema->strategies();
         $pdo = DB::getPdo();
@@ -280,15 +280,43 @@ class SyncExport extends Command
     {
         $this->info('Adding uploaded files to ZIP...');
 
-        // add all files from the storage/app/* directories, keeping the directory structure. livewire-tmp
-        // directories (at any depth, e.g. app/livewire-tmp or app/private/livewire-tmp) are pruned without
-        // being traversed, so their files aren't added nor even listed (Livewire may delete them meanwhile).
+        // Walk storage/app lazily, keeping the directory structure and skipping livewire-tmp.
+        // File::allFiles() would hold (and sort) every file in memory: ~10 KB each, so 12k files
+        // already exceed a 128 MB memory_limit.
         $basePath = storage_path('app');
-        $files = Finder::create()->files()->ignoreDotFiles(false)->exclude('livewire-tmp')->in($basePath);
+        $directories = new \RecursiveDirectoryIterator($basePath, \FilesystemIterator::SKIP_DOTS);
+        $withoutLivewireTmp = new \RecursiveCallbackFilterIterator(
+            $directories,
+            fn (\SplFileInfo $file) => !($file->isDir() && $file->getFilename() === 'livewire-tmp')
+        );
 
-        foreach ($files as $file) {
-            $this->zip->addFile($file->getPathname(), str_replace(DIRECTORY_SEPARATOR, '/', $file->getRelativePathname()));
+        $count = 0;
+        foreach (new \RecursiveIteratorIterator($withoutLivewireTmp) as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+
+            $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen($basePath) + 1));
+            $this->zip->addFile($file->getPathname(), $relativePath);
+
+            if ($this->isAlreadyCompressed($relativePath)) {
+                $this->zip->setCompressionName($relativePath, \ZipArchive::CM_STORE);
+            }
+
+            $count++;
         }
+
+        $this->info("Added $count files.");
+    }
+
+    /**
+     * Deflating images, videos or office files barely shrinks them (~4%) but makes closing the ZIP ~8 times slower.
+     */
+    protected function isAlreadyCompressed(string $path): bool
+    {
+        $extensions = config('deployer-sync.store_uncompressed', []);
+
+        return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $extensions, true);
     }
 
     protected function checkStorageDirectoryPermissions()

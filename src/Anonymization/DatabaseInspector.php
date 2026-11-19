@@ -40,7 +40,7 @@ class DatabaseInspector
     }
 
     /**
-     * @return list<array{name: string, nullable: bool, max_length: ?int}>
+     * @return list<array{name: string, nullable: bool, max_length: ?int, generated: bool}>
      */
     public function columns(string $table): array
     {
@@ -49,8 +49,10 @@ class DatabaseInspector
                 'name' => $row->name,
                 'nullable' => $row->nullable === 'YES',
                 'max_length' => $row->max_length !== null ? (int) $row->max_length : null,
+                // "STORED GENERATED"/"VIRTUAL GENERATED" (MySQL, MariaDB), "PERSISTENT GENERATED" (older MariaDB).
+                'generated' => str_contains(strtoupper((string) $row->extra), 'GENERATED'),
             ], $this->connection->select(
-                'SELECT COLUMN_NAME AS name, IS_NULLABLE AS nullable, CHARACTER_MAXIMUM_LENGTH AS max_length
+                'SELECT COLUMN_NAME AS name, IS_NULLABLE AS nullable, CHARACTER_MAXIMUM_LENGTH AS max_length, EXTRA AS extra
                  FROM information_schema.COLUMNS
                  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION',
                 [$table]
@@ -61,6 +63,7 @@ class DatabaseInspector
             'name' => $column['name'],
             'nullable' => (bool) $column['nullable'],
             'max_length' => null,
+            'generated' => !empty($column['generation']),
         ], $this->schemaBuilder()->getColumns($table));
     }
 

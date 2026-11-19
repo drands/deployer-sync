@@ -218,7 +218,7 @@ class SyncSchema
     }
 
     /**
-     * @return list<array{name: string, nullable: bool, max_length: ?int}>
+     * @return list<array{name: string, nullable: bool, max_length: ?int, generated: bool}>
      */
     public function columns(string $table): array
     {

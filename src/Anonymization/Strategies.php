@@ -41,7 +41,7 @@ class Strategies
     /**
      * Returns an error message if the strategy can't be applied to the given column, null otherwise.
      *
-     * @param array{name: string, nullable: bool, max_length: ?int} $column
+     * @param array{name: string, nullable: bool, max_length: ?int, generated: bool} $column
      */
     public function validate(mixed $strategy, array $column): ?string
     {
