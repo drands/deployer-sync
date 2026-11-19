@@ -7,8 +7,8 @@ use Drands\DeployerSync\Anonymization\SyncSchema;
 use Drands\DeployerSync\Console\Commands\Concerns\MysqlConnectionOptions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Symfony\Component\Finder\Finder;
 
 class SyncExport extends Command
 {
@@ -142,7 +142,9 @@ class SyncExport extends Command
             . $this->mysqlConnectionOptions()
             . ' --user=' . escapeshellarg($dbUsername)
             . ' --password=' . escapeshellarg($dbPassword)
-            . ' --no-create-info --no-tablespaces --replace --skip-triggers '
+            // --complete-insert names the columns in every INSERT, so the import still works when the
+            // local schema has extra columns (e.g. from unreleased migrations): they get their defaults.
+            . ' --no-create-info --no-tablespaces --replace --complete-insert --skip-triggers '
             . $this->ignoreTableOptions($dbName)
             . escapeshellarg($dbName)
             . ' 2>&1 1>' . escapeshellarg($path);
@@ -278,19 +280,14 @@ class SyncExport extends Command
     {
         $this->info('Adding uploaded files to ZIP...');
 
-        // add all files from the storage/app/* directories excluding the livewire-tmp directory, keep the directory structure
+        // add all files from the storage/app/* directories, keeping the directory structure. livewire-tmp
+        // directories (at any depth, e.g. app/livewire-tmp or app/private/livewire-tmp) are pruned without
+        // being traversed, so their files aren't added nor even listed (Livewire may delete them meanwhile).
         $basePath = storage_path('app');
-        $files = File::allFiles($basePath, hidden: true);
+        $files = Finder::create()->files()->ignoreDotFiles(false)->exclude('livewire-tmp')->in($basePath);
 
         foreach ($files as $file) {
-            $filePath = $file->getPathname();
-
-            if (Str::contains($filePath, 'livewire-tmp')) {
-                continue;
-            }
-
-            $relativePath = str_replace($basePath . DIRECTORY_SEPARATOR, '', $filePath);
-            $this->zip->addFile($filePath, $relativePath);
+            $this->zip->addFile($file->getPathname(), str_replace(DIRECTORY_SEPARATOR, '/', $file->getRelativePathname()));
         }
     }
 

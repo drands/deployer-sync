@@ -53,6 +53,11 @@ on `sync:prod-to-local` or `sync:export-to-local` if you'd rather not use the ex
 dep sync:import-from-local
 ```
 
+The import wipes the local database, runs your local migrations and then loads the dump. The dump
+names the columns in every insert, so local columns that production doesn't have yet (pending
+migrations) just get their default values. Files under any `livewire-tmp` directory of
+`storage/app` are never exported.
+
 ### Only clone uploaded files from the production bucket to your local development prefix
 ```bash
 dep sync:clone-storage
