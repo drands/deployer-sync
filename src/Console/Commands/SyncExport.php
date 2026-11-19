@@ -209,6 +209,13 @@ class SyncExport extends Command
         fclose($file);
     }
 
+    /**
+     * Rows read and written per statement while anonymizing. Kept small because the export runs inside the
+     * app (its boot alone can take half of a 128 MB memory_limit) and rows may carry large JSON or text:
+     * 1000-row chunks needed ~120 MB on a 543-row table of multilingual pages.
+     */
+    protected const ANONYMIZED_CHUNK_SIZE = 100;
+
     protected function dumpAnonymizedTable($file, string $table, array $strategies)
     {
         // Generated columns are recomputed on import; MySQL rejects any value given for them (error 3105).
@@ -219,12 +226,12 @@ class SyncExport extends Command
 
         $query = DB::table($table);
         if (count($primaryKey) === 1) {
-            $rows = $query->lazyById(1000, $primaryKey[0]);
+            $rows = $query->lazyById(static::ANONYMIZED_CHUNK_SIZE, $primaryKey[0]);
         } else {
             foreach ($primaryKey ?: $columns->keys()->all() as $column) {
                 $query->orderBy($column);
             }
-            $rows = $query->lazy(1000);
+            $rows = $query->lazy(static::ANONYMIZED_CHUNK_SIZE);
         }
 
         $insert = 'REPLACE INTO ' . $this->quoteIdentifier($table) . ' ('
@@ -249,7 +256,7 @@ class SyncExport extends Command
             }
             $batch[] = '(' . implode(',', $values) . ')';
 
-            if (count($batch) === 500) {
+            if (count($batch) === static::ANONYMIZED_CHUNK_SIZE) {
                 fwrite($file, $insert . implode(',', $batch) . ";\n");
                 $batch = [];
             }
